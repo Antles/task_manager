@@ -1,6 +1,16 @@
 [package]
-name = "task_manager"
+name = "task-manager-backend"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+axum = "0.6.20"
+tokio = { version = "1.32.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tower-http = { version = "0.4.0", features = ["cors"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "time"] }
+dotenv = "0.15.0"
+tracing-subscriber = "0.3.18"
+tracing = "0.1.40"
+chrono = { version = "0.4", features = ["serde"] }
