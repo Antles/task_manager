@@ -9,15 +9,17 @@ pub struct Task {
     pub completed: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub user_id: i32,
 }
 
 #[derive(Deserialize)]
 pub struct CreateTask {
     pub title: String,
+    pub completed: bool,
 }
 
 #[derive(Deserialize)]
 pub struct UpdateTask {
     pub title: Option<String>,
-    pub complete: Option<bool>,
+    pub completed: Option<bool>,
 }
