@@ -37,8 +37,8 @@ async function login() {
       password: password.value
     })
     console.log('Login response:', response.data)
-    const token = response.data
-    localStorage.setItem('token', token)
+    localStorage.setItem('token', response.data.token)
+    localStorage.setItem('username', username.value)  // Store the username
     router.push('/tasks')
   } catch (err) {
     console.error('Login error:', err)

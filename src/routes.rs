@@ -1,4 +1,5 @@
 use axum::{extract::State, http::StatusCode, Json};
+use serde_json::json;
 use sqlx::PgPool;
 
 use crate::auth::{create_token, AuthUser};
@@ -93,7 +94,7 @@ pub async fn register_user(
 pub async fn login(
     State(pool): State<PgPool>,
     Json(payload): Json<LoginUser>,
-) -> Result<Json<String>, (StatusCode, String)> {
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     match db::verify_user(&pool, &payload.username, &payload.password).await {
         Ok(Some(user)) => {
             let token = create_token(&user.id.to_string()).map_err(|e| {
@@ -103,7 +104,10 @@ pub async fn login(
                     "Failed to create token".to_string(),
                 )
             })?;
-            Ok(Json(token))
+            Ok(Json(json!({
+                "token": token,
+                "username": user.username
+            })))
         }
         Ok(None) => Err((
             StatusCode::UNAUTHORIZED,
