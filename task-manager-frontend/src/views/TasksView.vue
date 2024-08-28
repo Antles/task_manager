@@ -1,39 +1,98 @@
 <template>
-  <div class="tasks-view">
+  <div class="container">
     <h1>My Tasks</h1>
-    <div class="task-input">
+
+    <div class="search-filter">
       <input
-        v-model="newTask"
-        @keyup.enter="addTask"
-        placeholder="Add a new task"
+        v-model="searchQuery"
         type="text"
+        placeholder="Search tasks..."
       >
-      <button @click="addTask" class="add-btn">Add Task</button>
+      <select v-model="selectedCategory">
+        <option value="All">All Categories</option>
+        <option v-for="category in categories" :key="category" :value="category">
+          {{ category }}
+        </option>
+      </select>
     </div>
+
+    <div class="add-task">
+      <input
+        v-model="newTask.title"
+        @keyup.enter="addTask"
+        type="text"
+        placeholder="Add a new task"
+      >
+      <select v-model="newTask.category">
+        <option v-for="category in categories" :key="category" :value="category">
+          {{ category }}
+        </option>
+      </select>
+      <button @click="addTask" class="add-task-btn">Add Task</button>
+    </div>
+
     <ul class="task-list">
-      <li v-for="task in tasks" :key="task.id" class="task-item">
-        <div class="task-content">
+      <li v-for="task in filteredTasks" :key="task.id" class="task-item">
+        <div class="flex items-center">
           <input
             type="checkbox"
             :checked="task.completed"
             @change="updateTask(task)"
+            class="task-checkbox"
           >
-          <span :class="{ completed: task.completed }" :title="task.title">{{ task.title }}</span>
+          <span class="task-title" :class="{ 'line-through': task.completed }">
+            {{ task.title }}
+          </span>
+          <span class="task-category">{{ task.category }}</span>
         </div>
-        <button @click="deleteTask(task.id)" class="delete-btn">Delete</button>
+        <div class="task-actions">
+          <button @click="editTask(task)" class="edit-btn">Edit</button>
+          <button @click="deleteTask(task.id)" class="delete-btn">Delete</button>
+        </div>
       </li>
     </ul>
+
+    <!-- Edit task modal -->
+    <div v-if="editingTask" class="modal-overlay">
+      <div class="modal-content">
+        <h2>Edit Task</h2>
+        <input v-model="editingTask.title" type="text" class="edit-input">
+        <select v-model="editingTask.category" class="edit-select">
+          <option v-for="category in categories" :key="category" :value="category">
+            {{ category }}
+          </option>
+        </select>
+        <div class="modal-actions">
+          <button @click="saveEditedTask" class="save-btn">Save</button>
+          <button @click="cancelEdit" class="cancel-btn">Cancel</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
-
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 
 const tasks = ref([])
-const newTask = ref('')
+const newTask = ref({ title: '', category: 'Work', completed: false })
+const searchQuery = ref('')
+const selectedCategory = ref('All')
+const categories = ['Work', 'Personal', 'Shopping', 'Health']
+const editingTask = ref(null)
 
 const API_URL = 'http://localhost:3000'
+const WS_URL = 'ws://localhost:3000/ws'
+
+let ws
+
+const filteredTasks = computed(() => {
+  return tasks.value.filter(task => {
+    const matchesSearch = task.title.toLowerCase().includes(searchQuery.value.toLowerCase())
+    const matchesCategory = selectedCategory.value === 'All' || task.category === selectedCategory.value
+    return matchesSearch && matchesCategory
+  })
+})
 
 async function fetchTasks() {
   try {
@@ -47,14 +106,14 @@ async function fetchTasks() {
 }
 
 async function addTask() {
-  if (newTask.value.trim()) {
+  if (newTask.value.title.trim()) {
     try {
       const response = await axios.post(`${API_URL}/tasks`,
-        { title: newTask.value.trim(), completed: false },
+        {title: newTask.value.title, category: newTask.value.category, completed: false},
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       )
       tasks.value.push(response.data)
-      newTask.value = ''
+      newTask.value = { title: '', category: 'Work', completed: false }
     } catch (error) {
       console.error('Error adding task:', error)
     }
@@ -63,14 +122,14 @@ async function addTask() {
 
 async function updateTask(task) {
   try {
-    const response = await axios.patch(
+    const updatedTask = await axios.patch(
       `${API_URL}/tasks/${task.id}`,
-      { completed: !task.completed },
+      { completed: !task.completed, category: task.category },
       { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
     )
     const index = tasks.value.findIndex(t => t.id === task.id)
     if (index !== -1) {
-      tasks.value[index] = response.data
+      tasks.value[index] = updatedTask.data
     }
   } catch (error) {
     console.error('Error updating task:', error)
@@ -82,133 +141,194 @@ async function deleteTask(id) {
     await axios.delete(`${API_URL}/tasks/${id}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
-    tasks.value = tasks.value.filter(task => task.id !== id)
   } catch (error) {
     console.error('Error deleting task:', error)
   }
 }
 
-onMounted(fetchTasks)
+function editTask(task) {
+  editingTask.value = { ...task }
+}
+
+async function saveEditedTask() {
+  try {
+    await axios.patch(
+      `${API_URL}/tasks/${editingTask.value.id}`,
+      { title: editingTask.value.title, category: editingTask.value.category },
+      { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+    )
+    editingTask.value = null
+  } catch (error) {
+    console.error('Error saving edited task:', error)
+  }
+}
+
+function cancelEdit() {
+  editingTask.value = null
+}
+
+function setupWebSocket() {
+  ws = new WebSocket(WS_URL)
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data)
+    if (data.deleted) {
+      tasks.value = tasks.value.filter(task => task.id !== data.deleted)
+    } else {
+      const index = tasks.value.findIndex(t => t.id === data.id)
+      if (index !== -1) {
+        tasks.value[index] = data
+      } else {
+        tasks.value.push(data)
+      }
+    }
+  }
+
+  ws.onclose = () => {
+    console.log('WebSocket connection closed')
+  }
+}
+
+onMounted(() => {
+  fetchTasks()
+  setupWebSocket()
+})
+
+onUnmounted(() => {
+  if (ws) {
+    ws.close()
+  }
+})
 </script>
 
 <style scoped>
-.tasks-view {
-  width: 100%;
+.container {
   max-width: 800px;
   margin: 0 auto;
   padding: 2rem;
-  background-color: #fff;
+  background-color: #f8fafc;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 h1 {
-  font-size: 2rem;
-  color: #333;
-  margin-bottom: 1.5rem;
+  @apply text-4xl font-bold mb-8 text-center;
+  color: #2c3e50;
 }
 
-.task-input {
-  display: flex;
-  margin-bottom: 1.5rem;
+input[type="text"],
+select,
+button {
+  @apply border rounded-lg p-3 transition-all duration-200 ease-in-out;
+  font-size: 16px;
 }
 
 input[type="text"] {
-  flex-grow: 1;
-  padding: 0.5rem;
-  font-size: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 4px 0 0 4px;
+  @apply w-full bg-white focus:ring-2 focus:ring-blue-300 focus:border-blue-300;
 }
 
-.add-btn {
-  padding: 0.5rem 1rem;
-  font-size: 1rem;
-  background-color: #39c286;
-  color: white;
-  border: none;
-  border-radius: 0 4px 4px 0;
-  cursor: pointer;
-  transition: background-color 0.3s;
+select {
+  @apply bg-white cursor-pointer hover:bg-gray-50;
 }
 
-.add-btn:hover {
-  background-color: #2eaa76;
+button {
+  @apply font-semibold text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-opacity-50;
+}
+
+.search-filter {
+  @apply mb-6 flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3;
+}
+
+.add-task {
+  @apply mb-8 flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3;
 }
 
 .task-list {
-  list-style-type: none;
-  padding: 0;
+  @apply space-y-4;
 }
 
 .task-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem;
-  background-color: #f9f9f9;
-  border-radius: 4px;
-  margin-bottom: 0.5rem;
+  @apply flex items-center justify-between py-4 px-6 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200;
 }
 
-.task-content {
-  display: flex;
-  align-items: center;
-  flex-grow: 1;
-  min-width: 0; /* Allow flexbox to shrink below content size */
+.task-checkbox {
+  @apply mr-3 h-5 w-5 text-blue-500 rounded focus:ring-blue-400;
 }
 
-.task-content input[type="checkbox"] {
-  margin-right: 1rem;
-  flex-shrink: 0;
+.task-title {
+  @apply flex-grow text-gray-800;
 }
 
-.task-content span {
-  font-size: 1rem;
-  color: #333;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-right: 1rem;
+.task-category {
+  @apply text-sm text-gray-500 ml-2;
 }
 
-.task-content span.completed {
-  text-decoration: line-through;
-  color: #888;
+.task-actions {
+  @apply flex space-x-2;
+}
+
+.task-actions button {
+  @apply px-3 py-1 text-sm rounded-full;
+}
+
+.edit-btn {
+  @apply bg-green-500 hover:bg-green-600;
 }
 
 .delete-btn {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.875rem;
-  background-color: #e74c3c;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-  flex-shrink: 0;
+  @apply bg-red-500 hover:bg-red-600;
 }
 
-.delete-btn:hover {
-  background-color: #c0392b;
+.add-task-btn {
+  @apply w-full sm:w-auto;
 }
 
-@media (max-width: 768px) {
-  .tasks-view {
-    padding: 1rem;
+.modal-overlay {
+  @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center;
+}
+
+.modal-content {
+  @apply bg-white p-6 rounded-lg shadow-xl w-full max-w-md;
+}
+
+.modal-content h2 {
+  @apply text-2xl font-bold mb-4;
+}
+
+.edit-input,
+.edit-select {
+  @apply w-full mb-4;
+}
+
+.modal-actions {
+  @apply flex justify-end space-x-2;
+}
+
+.save-btn,
+.cancel-btn {
+  @apply px-4 py-2;
+}
+
+.save-btn {
+  @apply bg-green-500 hover:bg-green-600;
+}
+
+.cancel-btn {
+  @apply bg-gray-300 text-gray-800 hover:bg-gray-400;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .container {
+    @apply px-4;
   }
 
-  .task-input {
-    flex-direction: column;
+  .task-item {
+    @apply flex-col items-start space-y-2;
   }
 
-  input[type="text"] {
-    border-radius: 4px;
-    margin-bottom: 0.5rem;
-  }
-
-  .add-btn {
-    border-radius: 4px;
+  .task-actions {
+    @apply self-end;
   }
 }
 </style>

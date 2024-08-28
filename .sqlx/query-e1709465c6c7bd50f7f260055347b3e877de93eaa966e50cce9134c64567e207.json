@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO tasks (title) VALUES ($1) RETURNING *",
+  "query": "UPDATE tasks SET title = COALESCE($1, title), completed = COALESCE($2, completed), category = $3, updated_at = NOW() WHERE id = $4 RETURNING *",
   "describe": {
     "columns": [
       {
@@ -11,7 +11,7 @@
       {
         "ordinal": 1,
         "name": "title",
-        "type_info": "Text"
+        "type_info": "Varchar"
       },
       {
         "ordinal": 2,
@@ -27,11 +27,24 @@
         "ordinal": 4,
         "name": "updated_at",
         "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "user_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "category",
+        "type_info": "Varchar"
       }
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "Varchar",
+        "Bool",
+        "Varchar",
+        "Int4"
       ]
     },
     "nullable": [
@@ -39,8 +52,10 @@
       false,
       false,
       false,
+      false,
+      false,
       false
     ]
   },
-  "hash": "f9a1161c41774a8bb9263e7bc6a1510e1658286926cc4e0661cb6bbae71d98a8"
+  "hash": "e1709465c6c7bd50f7f260055347b3e877de93eaa966e50cce9134c64567e207"
 }

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM tasks ORDER BY created_at DESC",
+  "query": "\n        SELECT *\n        FROM tasks\n        WHERE id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -11,7 +11,7 @@
       {
         "ordinal": 1,
         "name": "title",
-        "type_info": "Text"
+        "type_info": "Varchar"
       },
       {
         "ordinal": 2,
@@ -27,12 +27,26 @@
         "ordinal": 4,
         "name": "updated_at",
         "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "user_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "category",
+        "type_info": "Varchar"
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Int4"
+      ]
     },
     "nullable": [
+      false,
+      false,
       false,
       false,
       false,
@@ -40,5 +54,5 @@
       false
     ]
   },
-  "hash": "8bc6392130ffa6e441c46a2e250d0f497bc54eca2b9070d7c9872f256cdfbd07"
+  "hash": "3959f7c6e09d5b652b720161c8d9560a543964d0ea1f1a3a133bc226300fa5d4"
 }
