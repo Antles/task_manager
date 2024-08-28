@@ -108,11 +108,12 @@ async function fetchTasks() {
 async function addTask() {
   if (newTask.value.title.trim()) {
     try {
-      const response = await axios.post(`${API_URL}/tasks`,
+      await axios.post(`${API_URL}/tasks`,
         {title: newTask.value.title, category: newTask.value.category, completed: false},
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       )
-      tasks.value.push(response.data)
+
+      // Don't add the task here, let the WebSocket handle it
       newTask.value = { title: '', category: 'Work', completed: false }
     } catch (error) {
       console.error('Error adding task:', error)
@@ -122,15 +123,12 @@ async function addTask() {
 
 async function updateTask(task) {
   try {
-    const updatedTask = await axios.patch(
+    await axios.patch(
       `${API_URL}/tasks/${task.id}`,
       { completed: !task.completed, category: task.category },
       { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
     )
-    const index = tasks.value.findIndex(t => t.id === task.id)
-    if (index !== -1) {
-      tasks.value[index] = updatedTask.data
-    }
+    // Don't update the task here, let the WebSocket handle it
   } catch (error) {
     console.error('Error updating task:', error)
   }
@@ -141,6 +139,7 @@ async function deleteTask(id) {
     await axios.delete(`${API_URL}/tasks/${id}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
+    // Don't remove the task here, let the WebSocket handle it
   } catch (error) {
     console.error('Error deleting task:', error)
   }
@@ -157,6 +156,7 @@ async function saveEditedTask() {
       { title: editingTask.value.title, category: editingTask.value.category },
       { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
     )
+    // Don't update the task here, let the WebSocket handle it
     editingTask.value = null
   } catch (error) {
     console.error('Error saving edited task:', error)
@@ -186,6 +186,13 @@ function setupWebSocket() {
 
   ws.onclose = () => {
     console.log('WebSocket connection closed')
+    // Attempt to reconnect after a short delay
+    setTimeout(setupWebSocket, 1000)
+  }
+
+  ws.onerror = (error) => {
+    console.error('WebSocket error:', error)
+    ws.close()
   }
 }
 
