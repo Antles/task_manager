@@ -5,6 +5,7 @@ mod routes;
 mod websocket;
 use crate::websocket::handle_socket;
 use axum::headers::HeaderValue;
+use axum::http::{header, Method};
 use axum::{
     extract::ws::WebSocketUpgrade,
     response::IntoResponse,
@@ -43,8 +44,18 @@ pub async fn create_app() -> Router {
 
     let cors = CorsLayer::new()
         .allow_origin(frontend_url.parse::<HeaderValue>().unwrap())
-        .allow_methods(Any)
-        .allow_headers(Any)
+        .allow_methods(vec![
+            Method::GET,
+            Method::POST,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
+        .allow_headers(vec![
+            header::ACCEPT,
+            header::AUTHORIZATION,
+            header::CONTENT_TYPE,
+        ])
         .allow_credentials(true);
 
     Router::new()
