@@ -66,7 +66,7 @@ async fn ws_handler(
 }
 
 async fn health_check() -> impl IntoResponse {
-    "Success"
+    "Success\n"
 }
 
 #[tokio::main]
