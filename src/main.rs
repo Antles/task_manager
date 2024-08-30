@@ -5,7 +5,7 @@ mod routes;
 mod websocket;
 use crate::websocket::handle_socket;
 use axum::{
-    extract::ws::{WebSocket, WebSocketUpgrade},
+    extract::ws::WebSocketUpgrade,
     response::IntoResponse,
     routing::{delete, get, patch, post},
     Extension, Router,
@@ -29,6 +29,11 @@ pub async fn create_app() -> Router {
     let pool = sqlx::PgPool::connect(&database_url)
         .await
         .expect("Failed to connect to database");
+
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("Failed to migrate database");
 
     let (task_tx, _) = broadcast::channel(100);
 
