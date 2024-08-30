@@ -21,6 +21,7 @@ thiserror = "1.0.63"
 futures = "0.3"
 tokio-tungstenite = "0.20"
 url = "2.5.2"
+http = "1.1.0"
 
 [build-dependencies]
 sqlx-cli = "0.7"

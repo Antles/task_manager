@@ -4,6 +4,7 @@ mod models;
 mod routes;
 mod websocket;
 use crate::websocket::handle_socket;
+use axum::headers::HeaderValue;
 use axum::{
     extract::ws::WebSocketUpgrade,
     response::IntoResponse,
@@ -25,6 +26,7 @@ pub struct AppState {
 pub async fn create_app() -> Router {
     dotenv::dotenv().ok();
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let frontend_url = std::env::var("FRONTEND_URL").expect("FRONTEND_URL must be set");
 
     let pool = sqlx::PgPool::connect(&database_url)
         .await
@@ -40,7 +42,7 @@ pub async fn create_app() -> Router {
     let state = Arc::new(AppState { pool, task_tx });
 
     let cors = CorsLayer::new()
-        .allow_origin(Any)
+        .allow_origin(frontend_url.parse::<HeaderValue>().unwrap())
         .allow_methods(Any)
         .allow_headers(Any)
         .allow_credentials(true);

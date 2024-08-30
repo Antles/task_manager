@@ -2561,6 +2561,7 @@ dependencies = [
  "chrono",
  "dotenv",
  "futures",
+ "http 1.1.0",
  "jsonwebtoken",
  "serde",
  "serde_json",
