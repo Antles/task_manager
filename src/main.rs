@@ -42,7 +42,8 @@ pub async fn create_app() -> Router {
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
-        .allow_headers(Any);
+        .allow_headers(Any)
+        .allow_credentials(true);
 
     Router::new()
         .route("/register", post(routes::register_user))
