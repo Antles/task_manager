@@ -22,3 +22,5 @@ futures = "0.3"
 tokio-tungstenite = "0.20"
 url = "2.5.2"
 
+[build-dependencies]
+sqlx-cli = "0.7"
