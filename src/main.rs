@@ -52,6 +52,7 @@ pub async fn create_app() -> Router {
         .route("/tasks/:id", delete(routes::delete_task))
         .route("/tasks/:id", patch(routes::update_task))
         .route("/ws", get(ws_handler))
+        .route("/health_check", get(health_check))
         .layer(cors)
         .layer(Extension(state.clone()))
         .with_state(state)
@@ -62,6 +63,10 @@ async fn ws_handler(
     Extension(state): Extension<Arc<AppState>>,
 ) -> impl IntoResponse {
     ws.on_upgrade(move |socket| handle_socket(socket, state))
+}
+
+async fn health_check() -> impl IntoResponse {
+    "Success"
 }
 
 #[tokio::main]
